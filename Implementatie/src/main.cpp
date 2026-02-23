@@ -7,7 +7,8 @@
   https://deepbluembedded.com/esp32-adc-tutorial-read-analog-voltage-arduino/
   Capacitieve bodemvochtigheidssensor - 16/02/2026 -
   https://canvas.kdg.be/courses/55542/pages/bodemvochtigheidssensoren-capacitieve-bvh-sensor?module_item_id=1357791
-
+  The static keyword - 16/02/2026 -
+  https://ccrma.stanford.edu/~fgeorg/250a/lab2/arduino-0019/reference/Static.html#:~:text=The%20static%20keyword%20is%20used,their%20data%20between%20function%20calls.
 
 */
 
@@ -26,7 +27,8 @@ void setup() {
 }
 
 void loop() {
-  // statics die hetzelfde blijven tijdens de loops
+  // statics die hetzelfde blijven tijdens de loops, maar in loop-scope
+  // aangezien de rest van het programma dit niet moet zien
   static bool pumpActive = false;
   static int pumpStartMs = 0;
   static int lastCheckMs = 0;
@@ -42,6 +44,8 @@ void loop() {
     Serial.print("Temp:");
     Serial.println(tempC);
 
+    // "droog" wordt gemeten wanneer de sensor een waarde heeft tussen DRY_MIN
+    // en DRY_MAX
     bool capacitiveDry = (capacitiveValue >= CAPACITIVE_DRY_MIN &&
                           capacitiveValue <= CAPACITIVE_DRY_MAX);
     bool resistiveDry = (resistiveValue >= RESISTIVE_DRY_MIN &&
