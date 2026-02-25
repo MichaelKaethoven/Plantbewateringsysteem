@@ -21,8 +21,7 @@
 void setup() {
   Serial.begin(9600);
   pinMode(PUMP_RELAY_PIN, OUTPUT);
-  // Geef aan dat de ESP32 op de TEMP_SENSOR pin een lage voltage mag verwachten
-  // (100-950mV) zie pin attenuation bron
+
   analogSetPinAttenuation(TEMP_SENSOR, ADC_0db);
 }
 
@@ -40,7 +39,7 @@ void loop() {
 
     int capacitiveValue = getCapacitiveSensorValue();
     int resistiveValue = getResistiveSensorValue();
-    float tempC = getTemperatureFromSensor();
+    float tempC = getTemperatureFromSensor() - 3;
     Serial.print("Temp:");
     Serial.println(tempC);
 
@@ -76,11 +75,16 @@ float getTemperatureFromSensor() {
 
 int getResistiveSensorValue() {
   int sensorValue = analogRead(RESISTIVE_SENSOR);
+  Serial.print("Resistive val: ");
+  Serial.println(sensorValue);
+
   return sensorValue;
 }
 
 int getCapacitiveSensorValue() {
   int sensorValue = analogRead(CAPACITIVE_SENSOR);
+  Serial.print("Capacitive val: ");
+  Serial.println(sensorValue);
   return sensorValue;
 }
 
