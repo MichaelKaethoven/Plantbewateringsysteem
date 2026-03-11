@@ -58,6 +58,9 @@ enum MoistureLevel { WET, MOIST, DRY };
 #ifdef MOCK_DRY
 const int MOCK_CAPACITIVE_VALUE = 2900; // DRY range (2800-3000)
 const int MOCK_RESISTIVE_VALUE = 100;   // DRY range (0-250)
+#elif defined(MOCK_MOIST)
+const int MOCK_CAPACITIVE_VALUE = 2600; // MOIST range (2400-2799)
+const int MOCK_RESISTIVE_VALUE = 800;   // MOIST range (251-1500)
 #else                                   // MOCK_WET
 const int MOCK_CAPACITIVE_VALUE = 1800; // WET range (1400-2399)
 const int MOCK_RESISTIVE_VALUE = 2000;  // WET range (1501-3000)
