@@ -1,3 +1,5 @@
+#pragma once
+
 #pragma region PIN DEFINITIONS
 
 // GPIO-pinnummers van de aangesloten sensoren en de relay

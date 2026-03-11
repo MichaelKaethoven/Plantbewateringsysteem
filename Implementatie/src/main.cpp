@@ -25,6 +25,7 @@
 #include <ArduinoTrace.h>
 #endif
 #include <config.h>
+#include <logic.h>
 #include <functionDeclarations.h>
 
 void setup() {
@@ -90,15 +91,8 @@ void loop() {
     }
 
     // Start de pomp alleen als de grond droog is en de pomp nog niet loopt
-    if (moistureLevel == DRY && !pumpActive) {
-      // Bepaal de pompduur op basis van de temperatuur
-      if (tempC > TEMP_PUMP_THRESHOLD_C) {
-        pumpDurationMs = PUMP_ON_DURATION_MS;
-      } else if (tempC > TEMP_COLD_CUTOFF_C) {
-        pumpDurationMs = PUMP_ON_DURATION_SHORT_MS;
-      } else {
-        pumpDurationMs = 0; // Te koud: geen water geven
-      }
+    if (!pumpActive) {
+      pumpDurationMs = getPumpDurationMs(moistureLevel, tempC);
       debugI("Pump duration: %dms", pumpDurationMs);
 
       if (pumpDurationMs > 0) {
@@ -118,54 +112,6 @@ void loop() {
 
   // Verwerk inkomende seriële debug-commando's
   debugHandle();
-}
-
-// Geeft het droogste van twee vochtigheidsniveaus terug
-MoistureLevel selectMoistureLevel(MoistureLevel a, MoistureLevel b) {
-  if (a == DRY || b == DRY) {
-    return DRY;
-  }
-  if (a == MOIST || b == MOIST) {
-    return MOIST;
-  }
-  return WET;
-}
-
-// Zet de ruwe ADC-waarde van de capacitieve sensor om naar een
-// vochtigheidsniveau
-MoistureLevel getCapacitiveMoistureLevel(int value) {
-  if (value >= CAPACITIVE_DRY_MIN && value <= CAPACITIVE_DRY_MAX) {
-    return DRY;
-  }
-  if (value >= CAPACITIVE_MOIST_MIN && value <= CAPACITIVE_MOIST_MAX) {
-    return MOIST;
-  }
-  return WET;
-}
-
-// Zet de ruwe ADC-waarde van de resistieve sensor om naar een
-// vochtigheidsniveau
-MoistureLevel getResistiveMoistureLevel(int value) {
-  if (value >= RESISTIVE_DRY_MIN && value <= RESISTIVE_DRY_MAX) {
-    return DRY;
-  }
-  if (value >= RESISTIVE_MOIST_MIN && value <= RESISTIVE_MOIST_MAX) {
-    return MOIST;
-  }
-  return WET;
-}
-
-const String moistureLevelToString(MoistureLevel level) {
-  switch (level) {
-  case WET:
-    return "WET";
-  case MOIST:
-    return "MOIST";
-  case DRY:
-    return "DRY";
-  }
-  debugE("Fout met de toString van MoistureLevel");
-  return "UNKNOWN"; // Default return, anders geeft de compiler een waarschuwing
 }
 
 // Leest de temperatuursensor uit en geeft de waarde terug in graden Celsius
