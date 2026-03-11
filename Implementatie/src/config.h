@@ -53,24 +53,27 @@ enum MoistureLevel { WET, MOIST, DRY };
 // Nep-sensorwaarden voor testen zonder fysiek bord (alleen actief bij
 // MOCK_SENSORS build flag)
 #ifdef MOCK_SENSORS
+
 // Capacitieve sensor: MOCK_CAPACITIVE_DRY / MOCK_CAPACITIVE_MOIST /
 // MOCK_CAPACITIVE_WET (standaard)
 #ifdef MOCK_CAPACITIVE_DRY
 const int MOCK_CAPACITIVE_VALUE = 2900; // DRY range (2800-3000)
 #elif defined(MOCK_CAPACITIVE_MOIST)
 const int MOCK_CAPACITIVE_VALUE = 2600; // MOIST range (2400-2799)
-#else                                   // MOCK_CAPACITIVE_WET
+#else // MOCK_CAPACITIVE_WET
 const int MOCK_CAPACITIVE_VALUE = 1800; // WET range (1400-2399)
 #endif
+
 // Resistieve sensor: MOCK_RESISTIVE_DRY / MOCK_RESISTIVE_MOIST /
 // MOCK_RESISTIVE_WET (standaard)
 #ifdef MOCK_RESISTIVE_DRY
-const int MOCK_RESISTIVE_VALUE = 100;  // DRY range (0-250)
+const int MOCK_RESISTIVE_VALUE = 100; // DRY range (0-250)
 #elif defined(MOCK_RESISTIVE_MOIST)
-const int MOCK_RESISTIVE_VALUE = 800;  // MOIST range (251-1500)
-#else                                  // MOCK_RESISTIVE_WET
+const int MOCK_RESISTIVE_VALUE = 800; // MOIST range (251-1500)
+#else // MOCK_RESISTIVE_WET
 const int MOCK_RESISTIVE_VALUE = 2000; // WET range (1501-3000)
 #endif
+
 // Temperatuursensor in millivolt: hoog, normaal of laag afhankelijk van build
 // flag
 #ifdef MOCK_TEMP_HIGH
