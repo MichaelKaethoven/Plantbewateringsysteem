@@ -9,9 +9,9 @@
   https://canvas.kdg.be/courses/55542/pages/bodemvochtigheidssensoren-capacitieve-bvh-sensor?module_item_id=1357791
   The static keyword - 16/02/2026 -
   https://ccrma.stanford.edu/~fgeorg/250a/lab2/arduino-0019/reference/Static.html#:~:text=The%20static%20keyword%20is%20used,their%20data%20between%20function%20calls.
-  Using buildflags - 11/03/2026 -
+  Using buildflags - 10/03/2026 -
   https://docs.platformio.org/en/stable/projectconf/sections/env/options/build/build_flags.html
-  Using C preprocessors - 11/03/2026 -
+  Using C preprocessors - 10/03/2026 -
   https://www.tutorialspoint.com/cprogramming/c_preprocessors.htm
 */
 
