@@ -18,7 +18,8 @@
 #include <Arduino.h>
 // Stel het minimale logniveau in vóór de include, anders gebruikt SerialDebug
 // de standaard (WARNING)
-#define DEBUG_INITIAL_LEVEL DEBUG_LEVEL_INFO
+#define DEBUG_INITIAL_LEVEL DEBUG_LEVEL_VERBOSE
+#define ARDUINOTRACE_ENABLE 0
 #include <SerialDebug.h>
 #ifdef MOCK_SENSORS
 #include <ArduinoTrace.h>
@@ -31,7 +32,7 @@ void setup() {
   debugI("Setup started");
   // Zet de relay-pin als uitgang zodat we de pomp kunnen aansturen
   pinMode(PUMP_RELAY_PIN, OUTPUT);
-  debugSetLevel(DEBUG_LEVEL_INFO);
+  debugSetLevel(DEBUG_LEVEL_VERBOSE);
   // Zet de attenuatie van de temperatuursensor-pin op 0dB (bereik 0-1.1V)
   analogSetPinAttenuation(TEMP_SENSOR, ADC_0db);
 }
@@ -53,12 +54,14 @@ void loop() {
     // Lees de ruwe ADC-waarden van beide sensoren uit
     int capacitiveValue = getCapacitiveSensorValue();
     int resistiveValue = getResistiveSensorValue();
-    debugV("capacitiveValue = %d", capacitiveValue);
-    debugV("resistiveValue = %d", resistiveValue);
 
     // Zet de ruwe waarden om naar een vochtigheidsniveau per sensor
     MoistureLevel capacitiveLevel = getCapacitiveMoistureLevel(capacitiveValue);
     MoistureLevel resistiveLevel = getResistiveMoistureLevel(resistiveValue);
+    debugV("capacitiveValue = %5d | capacitiveLevel: %s", capacitiveValue,
+           moistureLevelToString(capacitiveLevel));
+    debugV("resistiveValue = %5d | resistiveLevel: %s", resistiveValue,
+           moistureLevelToString(resistiveLevel));
     // Combineer beide niveaus: het droogste niveau wint
     MoistureLevel moistureLevel =
         selectMoistureLevel(capacitiveLevel, resistiveLevel);
