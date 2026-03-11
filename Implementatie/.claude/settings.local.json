@@ -3,7 +3,10 @@
     "allow": [
       "Bash(pio test -e native)",
       "Bash(python3 -m platformio --version)",
-      "Bash(python -m platformio --version)"
+      "Bash(python -m platformio --version)",
+      "Bash(cp \"c:/Users/micha/Documents/School/GRAD_IOT/Embed_sys_2/Plantbewateringsysteem/Implementatie/lib/logic/logic.h\" \"c:/Users/micha/Documents/School/GRAD_IOT/Embed_sys_2/Plantbewateringsysteem/Implementatie/src/logic.h\")",
+      "Bash(cp \"c:/Users/micha/Documents/School/GRAD_IOT/Embed_sys_2/Plantbewateringsysteem/Implementatie/lib/logic/logic.cpp\" \"c:/Users/micha/Documents/School/GRAD_IOT/Embed_sys_2/Plantbewateringsysteem/Implementatie/src/logic.cpp\")",
+      "Bash(rm -rf \"c:/Users/micha/Documents/School/GRAD_IOT/Embed_sys_2/Plantbewateringsysteem/Implementatie/lib/logic\")"
     ]
   }
 }
