@@ -9,87 +9,218 @@
   https://canvas.kdg.be/courses/55542/pages/bodemvochtigheidssensoren-capacitieve-bvh-sensor?module_item_id=1357791
   The static keyword - 16/02/2026 -
   https://ccrma.stanford.edu/~fgeorg/250a/lab2/arduino-0019/reference/Static.html#:~:text=The%20static%20keyword%20is%20used,their%20data%20between%20function%20calls.
-
+  Using buildflags - 11/03/2026 -
+  https://docs.platformio.org/en/stable/projectconf/sections/env/options/build/build_flags.html
+  Using C preprocessors - 11/03/2026 -
+  https://www.tutorialspoint.com/cprogramming/c_preprocessors.htm
 */
 
 #include <Arduino.h>
+// Stel het minimale logniveau in vóór de include, anders gebruikt SerialDebug
+// de standaard (WARNING)
+#define DEBUG_INITIAL_LEVEL DEBUG_LEVEL_INFO
+#include <SerialDebug.h>
+#ifdef MOCK_SENSORS
+#include <ArduinoTrace.h>
+#endif
 #include <config.h>
 #include <functionDeclarations.h>
 
-#include <Arduino.h>
-
 void setup() {
   Serial.begin(9600);
+  debugI("Setup started");
+  // Zet de relay-pin als uitgang zodat we de pomp kunnen aansturen
   pinMode(PUMP_RELAY_PIN, OUTPUT);
-
+  debugSetLevel(DEBUG_LEVEL_INFO);
+  // Zet de attenuatie van de temperatuursensor-pin op 0dB (bereik 0-1.1V)
   analogSetPinAttenuation(TEMP_SENSOR, ADC_0db);
 }
 
 void loop() {
-  // statics die hetzelfde blijven tijdens de loops, maar in loop-scope
+  // Statics die hetzelfde blijven tijdens de loops, maar in loop-scope
   // aangezien de rest van het programma dit niet moet zien
   static bool pumpActive = false;
   static int pumpStartMs = 0;
+  static int pumpDurationMs = 0;
   static int lastCheckMs = 0;
 
   int nowMs = (int)millis();
 
+  // Lees de sensoren uit op een vast interval
   if (nowMs - lastCheckMs >= PUMP_CHECK_INTERVAL_MS) {
     lastCheckMs = nowMs;
 
+    // Lees de ruwe ADC-waarden van beide sensoren uit
     int capacitiveValue = getCapacitiveSensorValue();
     int resistiveValue = getResistiveSensorValue();
-    float tempC = getTemperatureFromSensor() - 3;
-    Serial.print("Temp:");
-    Serial.println(tempC);
+    debugV("capacitiveValue = %d", capacitiveValue);
+    debugV("resistiveValue = %d", resistiveValue);
 
-    // "droog" wordt gemeten wanneer de sensor een waarde heeft tussen DRY_MIN
-    // en DRY_MAX
-    bool capacitiveDry = (capacitiveValue >= CAPACITIVE_DRY_MIN &&
-                          capacitiveValue <= CAPACITIVE_DRY_MAX);
-    bool resistiveDry = (resistiveValue >= RESISTIVE_DRY_MIN &&
-                         resistiveValue <= RESISTIVE_DRY_MAX);
+    // Zet de ruwe waarden om naar een vochtigheidsniveau per sensor
+    MoistureLevel capacitiveLevel = getCapacitiveMoistureLevel(capacitiveValue);
+    MoistureLevel resistiveLevel = getResistiveMoistureLevel(resistiveValue);
+    // Combineer beide niveaus: het droogste niveau wint
+    MoistureLevel moistureLevel =
+        selectMoistureLevel(capacitiveLevel, resistiveLevel);
 
-    bool shouldRunPump =
-        capacitiveDry || resistiveDry || (tempC > TEMP_PUMP_THRESHOLD_C);
+    float tempC = getTemperatureFromSensor();
 
-    if (shouldRunPump && !pumpActive) {
-      turnPumpOn();
-      pumpActive = true;
-      pumpStartMs = nowMs;
+    // Log het vochtigheidsniveau
+    if (moistureLevel == DRY) {
+      debugW("Ground is dry (capacitive=%d, resistive=%d)", capacitiveValue,
+             resistiveValue);
+    } else if (moistureLevel == MOIST) {
+      debugI("Ground is moist (capacitive=%d, resistive=%d)", capacitiveValue,
+             resistiveValue);
+    } else {
+      debugI("Ground is wet (capacitive=%d, resistive=%d)", capacitiveValue,
+             resistiveValue);
+    }
+
+    // Log de temperatuurstatus
+    if (tempC > TEMP_PUMP_THRESHOLD_C) {
+      debugI("Temperature normal: %.1fC", tempC);
+    } else if (tempC > TEMP_COLD_CUTOFF_C) {
+      debugW("Temperature low: %.1fC", tempC);
+    } else {
+      debugW("Temperature too cold: %.1fC", tempC);
+    }
+
+    // Start de pomp alleen als de grond droog is en de pomp nog niet loopt
+    if (moistureLevel == DRY && !pumpActive) {
+      // Bepaal de pompduur op basis van de temperatuur
+      if (tempC > TEMP_PUMP_THRESHOLD_C) {
+        pumpDurationMs = PUMP_ON_DURATION_MS;
+      } else if (tempC > TEMP_COLD_CUTOFF_C) {
+        pumpDurationMs = PUMP_ON_DURATION_SHORT_MS;
+      } else {
+        pumpDurationMs = 0; // Te koud: geen water geven
+      }
+      debugI("Pump duration: %dms", pumpDurationMs);
+
+      if (pumpDurationMs > 0) {
+        turnPumpOn();
+        pumpActive = true;
+        pumpStartMs = nowMs;
+      }
     }
   }
 
-  if (pumpActive && (nowMs - pumpStartMs >= PUMP_ON_DURATION_MS)) {
+  // Zet de pomp uit zodra de ingestelde duur verstreken is
+  // (buiten het interval-blok zodat de timing precies klopt)
+  if (pumpActive && (nowMs - pumpStartMs >= pumpDurationMs)) {
     turnPumpOff();
     pumpActive = false;
   }
+
+  // Verwerk inkomende seriële debug-commando's
+  debugHandle();
 }
 
+// Geeft het droogste van twee vochtigheidsniveaus terug
+MoistureLevel selectMoistureLevel(MoistureLevel a, MoistureLevel b) {
+  if (a == DRY || b == DRY) {
+    return DRY;
+  }
+  if (a == MOIST || b == MOIST) {
+    return MOIST;
+  }
+  return WET;
+}
+
+// Zet de ruwe ADC-waarde van de capacitieve sensor om naar een
+// vochtigheidsniveau
+MoistureLevel getCapacitiveMoistureLevel(int value) {
+  if (value >= CAPACITIVE_DRY_MIN && value <= CAPACITIVE_DRY_MAX) {
+    return DRY;
+  }
+  if (value >= CAPACITIVE_MOIST_MIN && value <= CAPACITIVE_MOIST_MAX) {
+    return MOIST;
+  }
+  return WET;
+}
+
+// Zet de ruwe ADC-waarde van de resistieve sensor om naar een
+// vochtigheidsniveau
+MoistureLevel getResistiveMoistureLevel(int value) {
+  if (value >= RESISTIVE_DRY_MIN && value <= RESISTIVE_DRY_MAX) {
+    return DRY;
+  }
+  if (value >= RESISTIVE_MOIST_MIN && value <= RESISTIVE_MOIST_MAX) {
+    return MOIST;
+  }
+  return WET;
+}
+
+const String moistureLevelToString(MoistureLevel level) {
+  switch (level) {
+  case WET:
+    return "WET";
+  case MOIST:
+    return "MOIST";
+  case DRY:
+    return "DRY";
+  }
+  debugE("Fout met de toString van MoistureLevel");
+  return "UNKNOWN"; // Default return, anders geeft de compiler een waarschuwing
+}
+
+// Leest de temperatuursensor uit en geeft de waarde terug in graden Celsius
 float getTemperatureFromSensor() {
+#ifdef MOCK_SENSORS
+  TRACE();
+  int temperatureSensorMv = MOCK_TEMP_MV;
+  DUMP(temperatureSensorMv);
+#else
   int temperatureSensorMv = analogReadMilliVolts(TEMP_SENSOR);
+  debugV("temperatureSensorMv = %d", temperatureSensorMv);
+#endif
   // Conversie: 10mV per graden Celsius, zie LM35 sensor manual bron
   float tempC = temperatureSensorMv / 10.0f;
+#ifdef MOCK_SENSORS
+  DUMP(tempC);
+#else
+  debugV("tempC = %.1f", tempC);
+#endif
   return tempC;
 }
 
+// Leest de ruwe ADC-waarde van de resistieve bodemvochtigheidssensor uit
 int getResistiveSensorValue() {
-  int sensorValue = analogRead(RESISTIVE_SENSOR);
-  Serial.print("Resistive val: ");
-  Serial.println(sensorValue);
-
+#ifdef MOCK_SENSORS
+  TRACE();
+  int sensorValue = MOCK_RESISTIVE_VALUE;
+  DUMP(sensorValue);
   return sensorValue;
+#else
+  int sensorValue = analogRead(RESISTIVE_SENSOR);
+  debugV("resistiveSensorValue = %d", sensorValue);
+  return sensorValue;
+#endif
 }
 
+// Leest de ruwe ADC-waarde van de capacitieve bodemvochtigheidssensor uit
 int getCapacitiveSensorValue() {
-  int sensorValue = analogRead(CAPACITIVE_SENSOR);
-  Serial.print("Capacitive val: ");
-  Serial.println(sensorValue);
+#ifdef MOCK_SENSORS
+  TRACE();
+  int sensorValue = MOCK_CAPACITIVE_VALUE;
+  DUMP(sensorValue);
   return sensorValue;
+#else
+  int sensorValue = analogRead(CAPACITIVE_SENSOR);
+  debugV("capacitiveSensorValue = %d", sensorValue);
+  return sensorValue;
+#endif
 }
 
 // Stuurt een signaal naar de relay om de pomp aan te zetten
-void turnPumpOn() { digitalWrite(PUMP_RELAY_PIN, HIGH); }
+void turnPumpOn() {
+  debugI("Pump ON");
+  digitalWrite(PUMP_RELAY_PIN, HIGH);
+}
 
 // Stuurt een signaal naar de relay om de pomp uit te zetten
-void turnPumpOff() { digitalWrite(PUMP_RELAY_PIN, LOW); }
+void turnPumpOff() {
+  debugI("Pump OFF");
+  digitalWrite(PUMP_RELAY_PIN, LOW);
+}
