@@ -42,7 +42,7 @@ const int PUMP_ON_DURATION_MS = 2000;
 // Hoe lang de pomp aan blijft bij lage maar toegestane temperatuur (in ms)
 const int PUMP_ON_DURATION_SHORT_MS = 1000;
 // Hoe vaak de sensoren uitgelezen worden (in ms)
-const int PUMP_CHECK_INTERVAL_MS = 1000;
+const int PUMP_CHECK_INTERVAL_MS = 5000;
 
 #pragma endregion
 
