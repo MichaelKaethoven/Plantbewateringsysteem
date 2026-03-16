@@ -24,14 +24,34 @@
 #ifdef MOCK_SENSORS
 #include <ArduinoTrace.h>
 #endif
+#include <Bounce2.h>
 #include <config.h>
-#include <functionDeclarations.h>
+
+// Bounce2 object voor de handmatige override-knop; globaal zodat zowel setup()
+// als loop() er toegang toe hebben
+Bounce button;
+
+MoistureLevel selectMoistureLevel(MoistureLevel a, MoistureLevel b);
+MoistureLevel getCapacitiveMoistureLevel(int value);
+MoistureLevel getResistiveMoistureLevel(int value);
+const String moistureLevelToString(MoistureLevel level);
+
+float getTemperatureFromSensor();
+int getCapacitiveSensorValue();
+int getResistiveSensorValue();
+
+void turnPumpOn();
+void turnPumpOff();
 
 void setup() {
   Serial.begin(9600);
   debugI("Setup started");
   // Zet de relay-pin als uitgang zodat we de pomp kunnen aansturen
   pinMode(PUMP_RELAY_PIN, OUTPUT);
+  // Koppel de override-knop aan het Bounce2-object; INPUT_PULLUP zodat de knop
+  // actief-laag werkt (verbinding naar GND bij indrukken)
+  button.attach(MANUAL_BUTTON_PIN, INPUT_PULLUP);
+  button.interval(25); // 25ms debounce-tijd
   debugSetLevel(DEBUG_LEVEL_VERBOSE);
   // Zet de attenuatie van de temperatuursensor-pin op 0dB (bereik 0-1.1V)
   analogSetPinAttenuation(TEMP_SENSOR, ADC_0db);
@@ -46,6 +66,18 @@ void loop() {
   static int lastCheckMs = 0;
 
   int nowMs = (int)millis();
+
+  button.update();
+
+  // Handmatige override: fell() vuurt alleen bij de neergaande flank (één keer
+  // per druk), dankzij Bounce2 wordt contact-dender uitgefilterd
+  if (button.fell() && !pumpActive) {
+    debugI("Manual override button pressed");
+    pumpDurationMs = MANUAL_PUMP_DURATION_MS;
+    turnPumpOn();
+    pumpActive = true;
+    pumpStartMs = nowMs;
+  }
 
   // Lees de sensoren uit op een vast interval
   if (nowMs - lastCheckMs >= PUMP_CHECK_INTERVAL_MS) {
@@ -120,7 +152,9 @@ void loop() {
   debugHandle();
 }
 
-// Geeft het droogste van twee vochtigheidsniveaus terug
+// Geeft het droogste van twee vochtigheidsniveaus terug.
+// Keuze: het droogste niveau wint zodat de grond nooit te droog kan worden —
+// te droog is een groter risico voor de plant dan te nat
 MoistureLevel selectMoistureLevel(MoistureLevel a, MoistureLevel b) {
   if (a == DRY || b == DRY) {
     return DRY;

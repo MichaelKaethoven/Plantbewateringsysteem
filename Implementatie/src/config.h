@@ -5,13 +5,18 @@ const int TEMP_SENSOR = 36;       // A0
 const int CAPACITIVE_SENSOR = 39; // A1
 const int RESISTIVE_SENSOR = 34;  // A2
 const int PUMP_RELAY_PIN = 25;    // D2
+const int MANUAL_BUTTON_PIN = 27; // D3
 
 #pragma endregion
 
 #pragma region CONSTANTS
 
 // ADC-drempelwaarden van de capacitieve bodemvochtigheidssensor (hogere waarde
-// = droger)
+// = droger).
+// Kalibratie: de grenswaarden zijn bepaald door de sensor te meten in droge,
+// vochtige en natte grond onder verschillende omstandigheden. De grenzen tussen
+// de statussen zijn bepaald door het midden te nemen tussen de gemeten
+// uitersten van twee aangrenzende statussen.
 const int CAPACITIVE_DRY_MAX = 3000;
 const int CAPACITIVE_DRY_MIN = 2800;
 
@@ -22,7 +27,10 @@ const int CAPACITIVE_WET_MAX = 2399;
 const int CAPACITIVE_WET_MIN = 1400;
 
 // ADC-drempelwaarden van de resistieve bodemvochtigheidssensor (lagere waarde =
-// droger)
+// droger).
+// Kalibratie: zelfde aanpak als de capacitieve sensor — gemeten in droge,
+// vochtige en natte grond; grenzen bepaald als midden tussen aangrenzende
+// meetreeksen.
 const int RESISTIVE_DRY_MIN = 0;
 const int RESISTIVE_DRY_MAX = 250;
 
@@ -38,11 +46,19 @@ const int TEMP_PUMP_THRESHOLD_C = 25;
 // plant)
 const int TEMP_COLD_CUTOFF_C = 5;
 // Hoe lang de pomp aan blijft bij normale temperatuur (in ms)
+// Waarden afkomstig uit de flowchart die in de klas is opgesteld
 const int PUMP_ON_DURATION_MS = 2000;
 // Hoe lang de pomp aan blijft bij lage maar toegestane temperatuur (in ms)
+// Waarde afkomstig uit de flowchart die in de klas is opgesteld
 const int PUMP_ON_DURATION_SHORT_MS = 1000;
-// Hoe vaak de sensoren uitgelezen worden (in ms)
+// Hoe vaak de sensoren uitgelezen worden (in ms).
+// Ingesteld op 5s voor testdoeleinden; in productie kan dit verhoogd worden
+// (bv. elke 30 minuten) om energie te besparen
 const int PUMP_CHECK_INTERVAL_MS = 5000;
+// Hoe lang de pomp aan blijft bij een handmatige override (in ms).
+// Afzonderlijk instelbaar zodat de gebruiker per druk op de knop een vaste,
+// van de automatische cycli afwijkende hoeveelheid water kan geven
+const int MANUAL_PUMP_DURATION_MS = 3000;
 
 #pragma endregion
 
