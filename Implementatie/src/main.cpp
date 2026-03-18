@@ -15,6 +15,13 @@
   https://www.tutorialspoint.com/cprogramming/c_preprocessors.htm
 */
 
+/*
+VERWERKING KLASSIKALE FEEDBACK
+- Ik heb mijn code herwerkt naar de vereiste structuur
+- Ik heb de true-false statements voor de pomp vervangen door een Enum
+- Ik heb de panicbutton
+*/
+
 #include "Arduino.h"
 // Stel het minimale logniveau in vóór de include, anders gebruikt SerialDebug
 // de standaard (WARNING)
@@ -24,8 +31,8 @@
 #ifdef MOCK_SENSORS
 #include <ArduinoTrace.h>
 #endif
-#include <Bounce2.h>
 #include "config.h"
+#include <Bounce2.h>
 
 // Bounce2 object voor de handmatige override-knop; globaal zodat zowel setup()
 // als loop() er toegang toe hebben
@@ -45,7 +52,8 @@ bool pomp_actief = false;
 // Forward declarations
 Vochtigheid berekenCategorieCapactieveBHV(int sensorwaarde);
 Vochtigheid berekenCategorieResistieveBVH(int sensorwaarde);
-Vochtigheid berekenSamengesteldeCategorie(Vochtigheid categorieResistieveBVH, Vochtigheid categorieCapacitieveBVH);
+Vochtigheid berekenSamengesteldeCategorie(Vochtigheid categorieResistieveBVH,
+                                          Vochtigheid categorieCapacitieveBVH);
 const String vochtigheidsNiveauNaarString(Vochtigheid niveau);
 
 /**
@@ -103,49 +111,37 @@ int leesResistieveBVHSensor() {
 #endif
 }
 
-/* MOCK functies om sensoren te bypassen */
-int leesTemperatuur_MOCK() {
-  // Return random waarde tussen 0 en 30 °C
-  return random(0, 30);
-}
-
-int leesCapacitieveBVHSensor_MOCK() {
-  // Return random waarde tussen 0 en 4095
-  return random(0, 4095);
-}
-
-int leesResistieveBVHSensor_MOCK() {
-  // Return random waarde tussen 0 en 4095
-  return random(0, 4095);
-}
-
 /**
- * Bepaal de categorie van de capacitieve bodemvochtigheidssensor voor de gemeten sensorwaarde.
- * We gebruiken hierbij de configuratie uit onze calibratie.  Per categorie checken we of de waarde
- * tussen de MIN en de MAX valt.
- * Return type: Vochtigheid (uit configuratiebestand)
+ * Bepaal de categorie van de capacitieve bodemvochtigheidssensor voor de
+ * gemeten sensorwaarde. We gebruiken hierbij de configuratie uit onze
+ * calibratie.  Per categorie checken we of de waarde tussen de MIN en de MAX
+ * valt. Return type: Vochtigheid (uit configuratiebestand)
  */
 Vochtigheid berekenCategorieCapactieveBHV(int sensorwaarde) {
-  if (sensorwaarde >= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN && sensorwaarde <= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MAX) {
+  if (sensorwaarde >= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN &&
+      sensorwaarde <= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MAX) {
     return DROOG;
   }
-  if (sensorwaarde >= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN && sensorwaarde <= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
+  if (sensorwaarde >= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN &&
+      sensorwaarde <= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
     return VOCHTIG;
   }
   return NAT;
 }
 
 /**
- * Bepaal de categorie van de resistieve bodemvochtigheidssensor voor de gemeten sensorwaarde.
- * We gebruiken hierbij de configuratie uit onze calibratie.  Per categorie checken we of de waarde
- * tussen de MIN en de MAX valt.
- * Return type: Vochtigheid (uit configuratiebestand)
+ * Bepaal de categorie van de resistieve bodemvochtigheidssensor voor de gemeten
+ * sensorwaarde. We gebruiken hierbij de configuratie uit onze calibratie.  Per
+ * categorie checken we of de waarde tussen de MIN en de MAX valt. Return type:
+ * Vochtigheid (uit configuratiebestand)
  */
 Vochtigheid berekenCategorieResistieveBVH(int sensorwaarde) {
-  if (sensorwaarde >= RESISTIEVE_SENSOR_DROOG_INTERVAL_MIN && sensorwaarde <= RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX) {
+  if (sensorwaarde >= RESISTIEVE_SENSOR_DROOG_INTERVAL_MIN &&
+      sensorwaarde <= RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX) {
     return DROOG;
   }
-  if (sensorwaarde >= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MIN && sensorwaarde <= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
+  if (sensorwaarde >= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MIN &&
+      sensorwaarde <= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
     return VOCHTIG;
   }
   return NAT;
@@ -157,7 +153,8 @@ Vochtigheid berekenCategorieResistieveBVH(int sensorwaarde) {
  * Redenering: te droog is een groter risico voor de plant dan te nat.
  * Return type: Vochtigheid (uit configuratiebestand)
  */
-Vochtigheid berekenSamengesteldeCategorie(Vochtigheid categorieResistieveBVH, Vochtigheid categorieCapacitieveBVH) {
+Vochtigheid berekenSamengesteldeCategorie(Vochtigheid categorieResistieveBVH,
+                                          Vochtigheid categorieCapacitieveBVH) {
   if (categorieResistieveBVH == DROOG || categorieCapacitieveBVH == DROOG) {
     return DROOG;
   }
@@ -195,8 +192,10 @@ void zetWaterpompUit() {
 }
 
 /**
- * Deze functie bevat alle code voor het uitlezen van de sensoren en om de waterpomp indien nodig aan te zetten.
- * Het uitzetten van de waterpomp gebeurt niet hier maar in de loop() functie na controle of er voldoende tijd verstreken is.
+ * Deze functie bevat alle code voor het uitlezen van de sensoren en om de
+ * waterpomp indien nodig aan te zetten. Het uitzetten van de waterpomp gebeurt
+ * niet hier maar in de loop() functie na controle of er voldoende tijd
+ * verstreken is.
  */
 void leesSensorenEnGeefWaterIndienNodig() {
   int capacitieve_bvh_waarde = leesCapacitieveBVHSensor();
@@ -204,22 +203,26 @@ void leesSensorenEnGeefWaterIndienNodig() {
   int temperatuur = leesTemperatuur();
 
   // Bepaal individuele categoriën en samengestelde categorie
-  Vochtigheid categorieCapacitieveBVH = berekenCategorieCapactieveBHV(capacitieve_bvh_waarde);
-  Vochtigheid categorieResistieveBVH = berekenCategorieResistieveBVH(resistieve_bvh_waarde);
-  Vochtigheid categorie = berekenSamengesteldeCategorie(categorieCapacitieveBVH, categorieResistieveBVH);
+  Vochtigheid categorieCapacitieveBVH =
+      berekenCategorieCapactieveBHV(capacitieve_bvh_waarde);
+  Vochtigheid categorieResistieveBVH =
+      berekenCategorieResistieveBVH(resistieve_bvh_waarde);
+  Vochtigheid categorie = berekenSamengesteldeCategorie(categorieCapacitieveBVH,
+                                                        categorieResistieveBVH);
 
-  debugV("capacitiveValue = %5d | categorieCapacitief: %s", capacitieve_bvh_waarde,
+  debugV("capacitiveValue = %5d | categorieCapacitief: %s",
+         capacitieve_bvh_waarde,
          vochtigheidsNiveauNaarString(categorieCapacitieveBVH).c_str());
   debugV("resistiveValue = %5d | categorieResistief: %s", resistieve_bvh_waarde,
          vochtigheidsNiveauNaarString(categorieResistieveBVH).c_str());
 
   // Log het vochtigheidsniveau
   if (categorie == DROOG) {
-    debugW("Grond is droog (capacitief=%d, resistief=%d)", capacitieve_bvh_waarde,
-           resistieve_bvh_waarde);
+    debugW("Grond is droog (capacitief=%d, resistief=%d)",
+           capacitieve_bvh_waarde, resistieve_bvh_waarde);
   } else if (categorie == VOCHTIG) {
-    debugI("Grond is vochtig (capacitief=%d, resistief=%d)", capacitieve_bvh_waarde,
-           resistieve_bvh_waarde);
+    debugI("Grond is vochtig (capacitief=%d, resistief=%d)",
+           capacitieve_bvh_waarde, resistieve_bvh_waarde);
   } else {
     debugI("Grond is nat (capacitief=%d, resistief=%d)", capacitieve_bvh_waarde,
            resistieve_bvh_waarde);
@@ -278,7 +281,8 @@ void setup() {
 }
 
 void loop() {
-  // We hebben huidige millis nodig om de verschillende processen te controleren (water geven / stoppen)
+  // We hebben huidige millis nodig om de verschillende processen te controleren
+  // (water geven / stoppen)
   long huidigeMillis = millis();
 
   button.update();
@@ -290,12 +294,14 @@ void loop() {
     zetWaterpompAan(WATER_GEEF_DUUR_MANUEEL_MS);
   }
 
-  // Controleer of de waterpomp uitgezet moet worden en roep zetWaterpompUit() aan indien nodig
+  // Controleer of de waterpomp uitgezet moet worden en roep zetWaterpompUit()
+  // aan indien nodig
   if (pomp_actief && (huidigeMillis - pomp_start_ms >= pomp_duur_ms)) {
     zetWaterpompUit();
   }
 
-  // Controleer of sensoren ingelezen moeten worden en roep leesSensorenEnGeefWaterIndienNodig() aan indien nodig
+  // Controleer of sensoren ingelezen moeten worden en roep
+  // leesSensorenEnGeefWaterIndienNodig() aan indien nodig
   if (huidigeMillis - laatste_check_ms >= SENSOR_INLEES_INTERVAL_MS) {
     laatste_check_ms = huidigeMillis;
     leesSensorenEnGeefWaterIndienNodig();

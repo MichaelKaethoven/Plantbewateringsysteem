@@ -1,3 +1,8 @@
+/*
+VERWERKING KLASSIKALE FEEDBACK
+- Ik heb de klassikale feedback bekeken. Echter moest ik niets meer aanpassen.
+*/
+
 #pragma region PIN DEFINITIONS
 
 // GPIO-pinnummers van de aangesloten sensoren en de relay
@@ -40,29 +45,39 @@ const int WATER_GEEF_DUUR_MANUEEL_MS = 3000;
 
 // Intervallen voor BVH waarden
 // Opgelet, we definiëren de intervallen als gesloten: [min, max]
-// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de interpretatie "DROOG" te krijgen
+// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de
+// interpretatie "DROOG" te krijgen
 const int RESISTIEVE_SENSOR_DROOG_INTERVAL_MIN = 0;
 const int RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX = 376;
 
-// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de interpretatie "VOCHTIG" te krijgen
-const int RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MIN = RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX + 1;
+// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de
+// interpretatie "VOCHTIG" te krijgen
+const int RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MIN =
+    RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX + 1;
 const int RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX = 743;
 
-// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de interpretatie "NAT" te krijgen
-const int RESISTIEVE_SENSOR_NAT_INTERVAL_MIN = RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX + 1;
-const int RESISTIEVE_SENSOR_NAT_INTERVAL_MAX = 999;
+// Minimum- en maximumwaarde voor de resistieve vochtigheidssensor om de
+// interpretatie "NAT" te krijgen
+const int RESISTIEVE_SENSOR_NAT_INTERVAL_MIN =
+    RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX + 1;
+const int RESISTIEVE_SENSOR_NAT_INTERVAL_MAX = 4095;
 
-// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de interpretatie "DROOG" te krijgen
+// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de
+// interpretatie "DROOG" te krijgen
 const int CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN = 2800;
-const int CAPACITIEVE_SENSOR_DROOG_INTERVAL_MAX = 3150;
+const int CAPACITIEVE_SENSOR_DROOG_INTERVAL_MAX = 4095;
 
-// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de interpretatie "VOCHTIG" te krijgen
+// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de
+// interpretatie "VOCHTIG" te krijgen
 const int CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN = 2000;
-const int CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MAX = CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN - 1;
+const int CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MAX =
+    CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN - 1;
 
-// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de interpretatie "NAT" te krijgen
-const int CAPACITIEVE_SENSOR_NAT_INTERVAL_MIN = 1420;
-const int CAPACITIEVE_SENSOR_NAT_INTERVAL_MAX = CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN - 1;
+// Minimum- en maximumwaarde voor de capacitieve vochtigheidssensor om de
+// interpretatie "NAT" te krijgen
+const int CAPACITIEVE_SENSOR_NAT_INTERVAL_MIN = 0;
+const int CAPACITIEVE_SENSOR_NAT_INTERVAL_MAX =
+    CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN - 1;
 
 #pragma region MOCK
 // Nep-sensorwaarden voor testen zonder fysiek bord (alleen actief bij
@@ -94,7 +109,8 @@ const int MOCK_RESISTIVE_VALUE = 870; // NAT range (744-999)
 #ifdef MOCK_TEMP_HIGH
 const int MOCK_TEMP_MV = 260; // 26°C, boven TEMPERATUUR_NORMAAL_GRENS_C
 #elif defined(MOCK_TEMP_NORMAL)
-const int MOCK_TEMP_MV = 150; // 15°C, tussen TEMPERATUUR_TE_KOUD_GRENS_C en TEMPERATUUR_NORMAAL_GRENS_C
+const int MOCK_TEMP_MV = 150; // 15°C, tussen TEMPERATUUR_TE_KOUD_GRENS_C en
+                              // TEMPERATUUR_NORMAAL_GRENS_C
 #else // MOCK_TEMP_LOW
 const int MOCK_TEMP_MV = 30; // 3°C, onder TEMPERATUUR_TE_KOUD_GRENS_C
 #endif
