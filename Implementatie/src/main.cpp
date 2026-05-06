@@ -29,6 +29,8 @@
     https://docs.espressif.com/projects/arduino-esp32/en/latest/api/httpclient.html
   ESP32 NTP / configTime - 27/04/2026 -
     https://docs.espressif.com/projects/arduino-esp32/en/latest/api/time.html
+  Claude Code hulp met debugging en code structuur - https://claude.ai -
+  06/05/2026
 */
 
 /*
