@@ -59,6 +59,7 @@
 #include <time.h>
 
 #include "config.h"
+#include "logica.h"
 #include "secrets.h"
 
 // ── WiFi globalen
@@ -114,10 +115,6 @@ int leesTemperatuur();
 int leesCapacitieveBVHSensor();
 int leesResistieveBVHSensor();
 void leesGPS();
-Vochtigheid berekenCategorieCapactieveBHV(int sensorwaarde);
-Vochtigheid berekenCategorieResistieveBVH(int sensorwaarde);
-Vochtigheid berekenSamengesteldeCategorie(Vochtigheid cap, Vochtigheid res);
-String vochtigheidsNiveauNaarString(Vochtigheid niveau);
 void leesSensorsEnBeslisWatering();
 void zetWaterpompUit();
 void gaInDeepSleep();
@@ -261,70 +258,6 @@ void leesGPS() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// CLASSIFICATIE
-// ═════════════════════════════════════════════════════════════════════════════
-
-/**
- * Classificeer de capacitieve sensorwaarde als DROOG, VOCHTIG of NAT.
- * Gebruikt de kalibratie-intervallen uit config.h.
- */
-Vochtigheid berekenCategorieCapactieveBHV(int sensorwaarde) {
-  if (sensorwaarde >= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN &&
-      sensorwaarde <= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MAX) {
-    return DROOG;
-  }
-  if (sensorwaarde >= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MIN &&
-      sensorwaarde <= CAPACITIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
-    return VOCHTIG;
-  }
-  return NAT;
-}
-
-/**
- * Classificeer de resistieve sensorwaarde als DROOG, VOCHTIG of NAT.
- * Gebruikt de kalibratie-intervallen uit config.h.
- */
-Vochtigheid berekenCategorieResistieveBVH(int sensorwaarde) {
-  if (sensorwaarde >= RESISTIEVE_SENSOR_DROOG_INTERVAL_MIN &&
-      sensorwaarde <= RESISTIEVE_SENSOR_DROOG_INTERVAL_MAX) {
-    return DROOG;
-  }
-  if (sensorwaarde >= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MIN &&
-      sensorwaarde <= RESISTIEVE_SENSOR_VOCHTIG_INTERVAL_MAX) {
-    return VOCHTIG;
-  }
-  return NAT;
-}
-
-/**
- * Bereken de samengestelde categorie voor beide sensoren.
- * Strategie: het droogste niveau wint altijd.
- * Reden: te droog is een groter risico voor de plant dan te nat.
- */
-Vochtigheid berekenSamengesteldeCategorie(Vochtigheid cap, Vochtigheid res) {
-  if (cap == DROOG || res == DROOG) {
-    return DROOG;
-  }
-  if (cap == VOCHTIG || res == VOCHTIG) {
-    return VOCHTIG;
-  }
-  return NAT;
-}
-
-String vochtigheidsNiveauNaarString(Vochtigheid niveau) {
-  switch (niveau) {
-  case NAT:
-    return "NAT";
-  case VOCHTIG:
-    return "VOCHTIG";
-  case DROOG:
-    return "DROOG";
-  }
-  debugE("Fout met de toString van Vochtigheid");
-  return "ONBEKEND";
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
 // POMPBESTURING
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -367,24 +300,16 @@ void leesSensorsEnBeslisWatering() {
   meting_categorie = categorie;
 
   debugV("capacitiveValue = %5d | categorie: %s", capacitieve_bvh_waarde,
-         vochtigheidsNiveauNaarString(categorieCapacitief).c_str());
+         vochtigheidsNiveauNaarString(categorieCapacitief));
   debugV("resistiveValue  = %5d | categorie: %s", resistieve_bvh_waarde,
-         vochtigheidsNiveauNaarString(categorieResistief).c_str());
+         vochtigheidsNiveauNaarString(categorieResistief));
   debugV("temperatuur = %d C", temperatuur);
 
-  if (categorie != DROOG) {
+  int duur = berekenPompDuurMs(categorie, temperatuur);
+  if (duur == 0) {
     debugI("Grond is %s — geen water nodig",
-           vochtigheidsNiveauNaarString(categorie).c_str());
+           vochtigheidsNiveauNaarString(categorie));
     return;
-  }
-
-  int duur;
-  if (temperatuur > TEMPERATUUR_NORMAAL_GRENS_C) {
-    duur = WATER_GEEF_DUUR_NORMAAL_MS;
-  } else if (temperatuur > TEMPERATUUR_TE_KOUD_GRENS_C) {
-    duur = WATER_GEEF_DUUR_KORT_MS;
-  } else {
-    duur = WATER_GEEF_DUUR_KOUD_MS;
   }
 
   debugI("Grond is DROOG — pomp AAN voor %d ms", duur);
@@ -441,7 +366,8 @@ String bouwSheetsUrl() {
   url += "&temperatuur=" + String(meting_temp);
   url += "&cap_bvh=" + String(meting_cap_bvh);
   url += "&res_bvh=" + String(meting_res_bvh);
-  url += "&categorie=" + vochtigheidsNiveauNaarString(meting_categorie);
+  url += "&categorie=";
+  url += vochtigheidsNiveauNaarString(meting_categorie);
   url += "&water_s=" + String(meting_pomp_duur_s);
   url += "&lat=" + String(rtcLaatsteLatitude, 6);
   url += "&lng=" + String(rtcLaatsteLongitude, 6);
