@@ -1,5 +1,6 @@
 
 #pragma once
+#include <cstdint>
 
 #pragma region PIN DEFINITIONS
 
