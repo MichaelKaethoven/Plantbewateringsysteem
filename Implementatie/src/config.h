@@ -10,9 +10,8 @@ const int CAPACITIVE_SENSOR = 39; // A1
 const int RESISTIVE_SENSOR = 34;  // A2
 const int PUMP_RELAY_PIN = 25;    // D2
 
-// Handmatige override-knop: sluit een externe drukknop aan op GPIO 27 (D3).
-// GPIO 27 is een RTC GPIO op de ESP32 en ondersteunt ext0 wakeup.
-const int WAKEUP_BUTTON_PIN = 27; // D3
+// Handmatige override-knop: sluit een externe drukknop aan op GPIO 26.  
+const int WAKEUP_BUTTON_PIN = 26;
 
 #pragma endregion
 
@@ -32,6 +31,11 @@ const uint64_t DEEP_SLEEP_DUUR_US = (uint64_t)DEEP_SLEEP_DUUR_S * 1000000ULL;
 const int GPS_RX_PIN = 16;
 const int GPS_TX_PIN = 17;
 const int GPS_BAUD = 9600;
+
+// Drempel voor significante positiewijziging: als de afstand tussen de vorige
+// en de nieuwe GPS-fix meer dan dit aantal meter is, wordt positieGewijzigd
+// op true gezet.
+const double GPS_POSITIE_WIJZIGING_DREMPEL_M = 50.0;
 
 // Maximale wachttijd voor een GPS-fix per wakeup.
 // Bij een cold start kan een fix minuten duren; 5 s is een compromis tussen

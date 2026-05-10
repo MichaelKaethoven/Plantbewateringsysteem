@@ -1,4 +1,5 @@
 #include "logica.h"
+#include <cmath>
 
 Vochtigheid berekenCategorieCapactieveBHV(int sensorwaarde) {
   if (sensorwaarde >= CAPACITIEVE_SENSOR_DROOG_INTERVAL_MIN &&
@@ -44,6 +45,19 @@ const char *vochtigheidsNiveauNaarString(Vochtigheid niveau) {
     return "DROOG";
   }
   return "ONBEKEND";
+}
+
+/*
+Code geschreven met Claude Code om afstand te berekenen t.o.v. vorige fix
+*/
+double berekenAfstandMeter(double lat1, double lng1, double lat2, double lng2) {
+  const double R = 6371000.0;
+  double dLat = (lat2 - lat1) * M_PI / 180.0;
+  double dLng = (lng2 - lng1) * M_PI / 180.0;
+  double a = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * M_PI / 180.0) *
+                                                 cos(lat2 * M_PI / 180.0) *
+                                                 sin(dLng / 2) * sin(dLng / 2);
+  return R * 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
 }
 
 int berekenPompDuurMs(Vochtigheid vochtigheid, int temperatuurC) {

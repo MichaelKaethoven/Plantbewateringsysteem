@@ -34,6 +34,12 @@
 */
 
 /*
+  Er zijn tests geschreven in ./test/test_logica/test_main.cpp
+  Deze kan je runnen met het commando:
+  & "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe" test -e native
+
+*/
+/*
   VERWERKING KLASSIKALE FEEDBACK (deel 1)
   - Structuur herwerkt naar vereiste opbouw
   - true/false vervangen door Enum voor pompstatus
@@ -85,6 +91,10 @@ TinyGPSPlus gps;
 RTC_DATA_ATTR double rtcLaatsteLatitude = 0.0;
 RTC_DATA_ATTR double rtcLaatsteLongitude = 0.0;
 RTC_DATA_ATTR bool rtcHeeftGpsFix = false;
+RTC_DATA_ATTR int rtcLaatsteCap = 0;
+RTC_DATA_ATTR int rtcLaatsteRes = 0;
+RTC_DATA_ATTR int rtcLaatsteTemp = 0;
+RTC_DATA_ATTR Vochtigheid rtcLaatsteCategorie = NAT;
 
 // ── Meetresultaten
 // Gevuld door de
@@ -98,13 +108,14 @@ int meting_pomp_duur_s = 0;          // 0 = geen water gegeven
 char meting_datum_tijdstip[22] = ""; // "DD-MM-YYYY_HH:MM:SS"
 
 // ── Loop-state (per wakeup, automatisch gereset door deep sleep)
+bool positieGewijzigd = false; // true als nieuwe fix >50 m van vorige fix
 esp_sleep_wakeup_cause_t wakeup_reden;
 PompStatus pompStatus = GEEN_WATER_GEVEN;
 unsigned long starttijd_waterpomp_ms = 0;
 int duurtijd_waterpomp_ms = 0;
 bool sensoren_uitgelezen = false;
 bool gps_uitgelezen = false;
-bool data_doorgestuurd = false;
+bool data_stap_klaar = false;
 unsigned long wifi_start_ms = 0;
 
 // ── Forward declarations
@@ -242,6 +253,14 @@ void leesGPS() {
          gps.sentencesWithFix(), gps.failedChecksum());
 
   if (gps.location.isValid()) {
+    if (rtcHeeftGpsFix) {
+      double afstand =
+          berekenAfstandMeter(rtcLaatsteLatitude, rtcLaatsteLongitude,
+                              gps.location.lat(), gps.location.lng());
+      positieGewijzigd = afstand > GPS_POSITIE_WIJZIGING_DREMPEL_M;
+      debugI("GPS: afstand t.o.v. vorige fix: %.1f m%s", afstand,
+             positieGewijzigd ? " — POSITIE GEWIJZIGD" : "");
+    }
     rtcLaatsteLatitude = gps.location.lat();
     rtcLaatsteLongitude = gps.location.lng();
     rtcHeeftGpsFix = true;
@@ -301,6 +320,11 @@ void leesSensorsEnBeslisWatering() {
   meting_res_bvh = resistieve_bvh_waarde;
   meting_categorie = categorie;
 
+  rtcLaatsteTemp      = meting_temp;
+  rtcLaatsteCap       = meting_cap_bvh;
+  rtcLaatsteRes       = meting_res_bvh;
+  rtcLaatsteCategorie = meting_categorie;
+
   debugV("capacitiveValue = %5d | categorie: %s", capacitieve_bvh_waarde,
          vochtigheidsNiveauNaarString(categorieCapacitief));
   debugV("resistiveValue  = %5d | categorie: %s", resistieve_bvh_waarde,
@@ -339,12 +363,12 @@ void haalNTPTijdOp() {
   struct tm tijdinfo;
   if (!getLocalTime(&tijdinfo, NTP_TIMEOUT_MS)) {
     debugW("NTP: geen tijdsynchronisatie binnen %d ms", NTP_TIMEOUT_MS);
-    strncpy(meting_datum_tijdstip, "00-00-0000_00:00:00",
+    strncpy(meting_datum_tijdstip, "00-00-0000 00:00:00",
             sizeof(meting_datum_tijdstip));
     return;
   }
   strftime(meting_datum_tijdstip, sizeof(meting_datum_tijdstip),
-           "%d-%m-%Y_%H:%M:%S", &tijdinfo);
+           "%d-%m-%Y %H:%M:%S", &tijdinfo);
   debugI("NTP: %s", meting_datum_tijdstip);
 }
 
@@ -359,6 +383,7 @@ void haalNTPTijdOp() {
  */
 String bouwSheetsUrl() {
   String datum_tijdstipEncoded = String(meting_datum_tijdstip);
+  datum_tijdstipEncoded.replace(" ", "%20");
   datum_tijdstipEncoded.replace(":", "%3A");
 
   String url = "https://script.google.com/macros/s/";
@@ -374,6 +399,7 @@ String bouwSheetsUrl() {
   url += "&lat=" + String(rtcLaatsteLatitude, 6);
   url += "&lng=" + String(rtcLaatsteLongitude, 6);
   url += "&gps_fix=" + String(rtcHeeftGpsFix ? 1 : 0);
+  url += "&positie_gewijzigd=" + String(positieGewijzigd ? 1 : 0);
   return url;
 }
 
@@ -412,16 +438,8 @@ void stuurNaarGoogleSheets() {
  *
  *  - Timer:  DEEP_SLEEP_DUUR_US microseconden (= 60 s → 1 meting per minuut).
  *  - EXT0:   WAKEUP_BUTTON_PIN op LOW-niveau → handmatige override.
- *
- * Vóór het slapen wachten we tot de knop losgelaten is: als de knop nog
- * ingedrukt is bij esp_deep_sleep_start(), zou de ESP32 onmiddellijk
- * opnieuw wakker worden via de LOW-level trigger.
  */
 void gaInDeepSleep() {
-  while (digitalRead(WAKEUP_BUTTON_PIN) == LOW) {
-    debugV("Wacht op loslaten van de knop...");
-  }
-
   verbreekWifi();
   debugI("Deep sleep voor %d s", DEEP_SLEEP_DUUR_S);
 
@@ -429,12 +447,7 @@ void gaInDeepSleep() {
   esp_sleep_enable_ext0_wakeup((gpio_num_t)WAKEUP_BUTTON_PIN, 0);
 
   esp_deep_sleep_start();
-  // Hieronder wordt nooit bereikt
 }
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ARDUINO ENTRY POINTS
-// ═════════════════════════════════════════════════════════════════════════════
 
 void setup() {
   Serial.begin(115200);
@@ -454,6 +467,19 @@ void setup() {
   wakeup_reden = esp_sleep_get_wakeup_cause();
   debugI("Wakeup: oorzaak=%d", (int)wakeup_reden);
 
+  // ── Bij knopwakeup: herstel laatste sensorwaarden uit RTC-geheugen ──────────
+  // De sensoren worden bij een knopdrukvering niet uitgelezen (opdrachtvereiste:
+  // de pomp draait onmiddellijk zonder sensorcheck). Zonder dit herstel zouden
+  // meting_cap_bvh / meting_res_bvh / meting_temp als 0 naar Sheets en Grafana
+  // gaan, waardoor het dashboard plotse nulwaarden toont die niet overeenkomen
+  // met de werkelijke grondtoestand en grafieken vervormen.
+  if (wakeup_reden == ESP_SLEEP_WAKEUP_EXT0) {
+    meting_cap_bvh   = rtcLaatsteCap;
+    meting_res_bvh   = rtcLaatsteRes;
+    meting_temp      = rtcLaatsteTemp;
+    meting_categorie = rtcLaatsteCategorie;
+  }
+
   // WiFi-scan gestart; loop() bewaakt de verbinding en timeout.
   verbindMetWifi();
   wifi_start_ms = millis();
@@ -465,7 +491,9 @@ void loop() {
   if (pompStatus == GEEN_WATER_GEVEN && wakeup_reden == ESP_SLEEP_WAKEUP_EXT0) {
     debugI("Panic button: pomp AAN voor %d ms", WATER_GEEF_DUUR_MANUEEL_MS);
     duurtijd_waterpomp_ms = WATER_GEEF_DUUR_MANUEEL_MS;
-    meting_pomp_duur_s = WATER_GEEF_DUUR_MANUEEL_MS / 1000;
+    meting_pomp_duur_s =
+        WATER_GEEF_DUUR_MANUEEL_MS /
+        1000; // voor makkelijk leesbare tekst in de Google Sheets
     starttijd_waterpomp_ms = millis();
     pompStatus = WATER_GEVEN;
     digitalWrite(PUMP_RELAY_PIN, HIGH);
@@ -497,26 +525,26 @@ void loop() {
   }
 
   // ── 5. Data doorsturen naar Google Sheets (1x per wakeup, vereist WiFi) ──
-  if (!data_doorgestuurd) {
+  if (!data_stap_klaar) {
     if (WiFi.status() == WL_CONNECTED) {
       debugI("WiFi verbonden: SSID=%s, IP=%s", WiFi.SSID().c_str(),
              WiFi.localIP().toString().c_str());
       haalNTPTijdOp();
       stuurNaarGoogleSheets();
-      data_doorgestuurd = true;
+      data_stap_klaar = true;
     } else if ((long)(millis() - wifi_start_ms) >= WIFI_VERBINDING_TIMEOUT_MS) {
       debugE("WiFi: geen verbinding na %d ms — data niet doorgestuurd",
              WIFI_VERBINDING_TIMEOUT_MS);
-      data_doorgestuurd = true;
+      data_stap_klaar = true;
     } else {
       wifiMulti.run();
     }
   }
 
   // ── 6. Deep sleep als de pomp niet actief is én data is doorgestuurd ────
-  // data_doorgestuurd wordt ook true gezet bij WiFi-timeout, zodat het systeem
+  // data_stap_klaar wordt ook true gezet bij WiFi-timeout, zodat het systeem
   // nooit onbepaald wakker blijft wachten op een verbinding.
-  if (pompStatus == GEEN_WATER_GEVEN && data_doorgestuurd) {
+  if (pompStatus == GEEN_WATER_GEVEN && data_stap_klaar) {
     gaInDeepSleep();
   }
 }
