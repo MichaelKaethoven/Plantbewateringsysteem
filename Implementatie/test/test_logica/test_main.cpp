@@ -1,3 +1,13 @@
+/*
+  BRONNEN:
+  Unity Test Framework (C) - 10/03/2026 -
+    https://github.com/ThrowTheSwitch/Unity
+  Unity assertion reference - 10/03/2026 -
+    https://github.com/ThrowTheSwitch/Unity/blob/master/docs/UnityAssertionsReference.md
+  PlatformIO Unit Testing - 10/03/2026 -
+    https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+*/
+
 #include <unity.h>
 #include "logica.h"
 
@@ -255,6 +265,30 @@ void test_scenario_cap_nat_res_nat_temp_hoog(void) {
   TEST_ASSERT_EQUAL(0, pompDuurVanRuweWaarden(CAP_NAT_VAL, RES_NAT_VAL, TEMP_HOOG_C));
 }
 
+// ── berekenAfstandMeter ────────────────────────────────────────────────────
+
+void test_afstand_zelfde_locatie_is_nul(void) {
+  TEST_ASSERT_TRUE(berekenAfstandMeter(51.2194, 4.4025, 51.2194, 4.4025) < 0.001);
+}
+
+void test_afstand_kleine_verplaatsing_onder_drempel(void) {
+  // ~11 m: onder GPS_POSITIE_WIJZIGING_DREMPEL_M (50 m)
+  double afstand = berekenAfstandMeter(51.2194, 4.4025, 51.2195, 4.4025);
+  TEST_ASSERT_TRUE(afstand < GPS_POSITIE_WIJZIGING_DREMPEL_M);
+}
+
+void test_afstand_grote_verplaatsing_boven_drempel(void) {
+  // ~111 m: boven GPS_POSITIE_WIJZIGING_DREMPEL_M (50 m)
+  double afstand = berekenAfstandMeter(51.2194, 4.4025, 51.2204, 4.4025);
+  TEST_ASSERT_TRUE(afstand > GPS_POSITIE_WIJZIGING_DREMPEL_M);
+}
+
+void test_afstand_kdg_naar_antwerpen_centraal(void) {
+  // KDG Groenplaats → Antwerpen-Centraal ≈ 1321 m (tolerantie ±100 m)
+  double afstand = berekenAfstandMeter(51.2194, 4.4025, 51.2172, 4.4211);
+  TEST_ASSERT_TRUE(afstand > 1221.0 && afstand < 1421.0);
+}
+
 // ── vochtigheidsNiveauNaarString ───────────────────────────────────────────
 
 void test_naar_string_nat(void) {
@@ -338,6 +372,11 @@ int main(void) {
   RUN_TEST(test_naar_string_nat);
   RUN_TEST(test_naar_string_vochtig);
   RUN_TEST(test_naar_string_droog);
+
+  RUN_TEST(test_afstand_zelfde_locatie_is_nul);
+  RUN_TEST(test_afstand_kleine_verplaatsing_onder_drempel);
+  RUN_TEST(test_afstand_grote_verplaatsing_boven_drempel);
+  RUN_TEST(test_afstand_kdg_naar_antwerpen_centraal);
 
   return UNITY_END();
 }

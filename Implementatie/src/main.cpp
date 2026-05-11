@@ -46,6 +46,12 @@
   - Bounce2 toegevoegd voor debouncing van de knop
 */
 
+/*
+  VERWERKING KLASSIKALE FEEDBACK (deel 2)
+  Ik heb de feedback bekeken en ik vond niets dat ik nog niet op de
+  juiste manier had geimplementeerd.
+*/
+
 #include "Arduino.h"
 
 // Stel het minimale logniveau in vóór de include, anders gebruikt
@@ -320,9 +326,9 @@ void leesSensorsEnBeslisWatering() {
   meting_res_bvh = resistieve_bvh_waarde;
   meting_categorie = categorie;
 
-  rtcLaatsteTemp      = meting_temp;
-  rtcLaatsteCap       = meting_cap_bvh;
-  rtcLaatsteRes       = meting_res_bvh;
+  rtcLaatsteTemp = meting_temp;
+  rtcLaatsteCap = meting_cap_bvh;
+  rtcLaatsteRes = meting_res_bvh;
   rtcLaatsteCategorie = meting_categorie;
 
   debugV("capacitiveValue = %5d | categorie: %s", capacitieve_bvh_waarde,
@@ -408,14 +414,20 @@ String bouwSheetsUrl() {
  */
 void stuurNaarGoogleSheets() {
   String url = bouwSheetsUrl();
+  // Bewust: de volledige URL (incl. deployment ID en GPS-coördinaten) wordt
+  // gelogd. In productie zou dit vermeden worden, maar in deze schoolomgeving
+  // is volledige zichtbaarheid nuttiger dan privacy-maatregelen.
   debugI("Sheets: stuur naar %s", url.c_str());
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setTimeout(
+      15); // seconden; voorkomt SSL EOF bij trage Google-handshake
 
   HTTPClient http;
   http.begin(client, url);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setTimeout(15000); // ms; voorkomt read timeout bij trage Google-respons
 
   int httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK) {
@@ -467,16 +479,16 @@ void setup() {
   wakeup_reden = esp_sleep_get_wakeup_cause();
   debugI("Wakeup: oorzaak=%d", (int)wakeup_reden);
 
-  // ── Bij knopwakeup: herstel laatste sensorwaarden uit RTC-geheugen ──────────
-  // De sensoren worden bij een knopdrukvering niet uitgelezen (opdrachtvereiste:
-  // de pomp draait onmiddellijk zonder sensorcheck). Zonder dit herstel zouden
-  // meting_cap_bvh / meting_res_bvh / meting_temp als 0 naar Sheets en Grafana
-  // gaan, waardoor het dashboard plotse nulwaarden toont die niet overeenkomen
-  // met de werkelijke grondtoestand en grafieken vervormen.
+  // ── Bij knopwakeup: herstel laatste sensorwaarden uit RTC-geheugen
+  // ────────── De sensoren worden bij een knopdrukvering niet uitgelezen
+  // (opdrachtvereiste: de pomp draait onmiddellijk zonder sensorcheck). Zonder
+  // dit herstel zouden meting_cap_bvh / meting_res_bvh / meting_temp als 0 naar
+  // Sheets en Grafana gaan, waardoor het dashboard plotse nulwaarden toont die
+  // niet overeenkomen met de werkelijke grondtoestand en grafieken vervormen.
   if (wakeup_reden == ESP_SLEEP_WAKEUP_EXT0) {
-    meting_cap_bvh   = rtcLaatsteCap;
-    meting_res_bvh   = rtcLaatsteRes;
-    meting_temp      = rtcLaatsteTemp;
+    meting_cap_bvh = rtcLaatsteCap;
+    meting_res_bvh = rtcLaatsteRes;
+    meting_temp = rtcLaatsteTemp;
     meting_categorie = rtcLaatsteCategorie;
   }
 
@@ -525,7 +537,10 @@ void loop() {
   }
 
   // ── 5. Data doorsturen naar Google Sheets (1x per wakeup, vereist WiFi) ──
-  if (!data_stap_klaar) {
+  // Wacht tot de pomp UIT is: stuurNaarGoogleSheets() blokkeert de loop tijdens
+  // de SSL-handshake (tot 15 s), waardoor stap 4 niet meer kan draaien en de
+  // pomp te lang aan zou blijven.
+  if (!data_stap_klaar && pompStatus == GEEN_WATER_GEVEN) {
     if (WiFi.status() == WL_CONNECTED) {
       debugI("WiFi verbonden: SSID=%s, IP=%s", WiFi.SSID().c_str(),
              WiFi.localIP().toString().c_str());
